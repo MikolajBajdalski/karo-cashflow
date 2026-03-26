@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Należności – KARO CashFlow{% endblock %}
+
+{% block content %}
+
+{# ── Helpers ── #}
+{% macro fmt_amount(v) %}
+  {{- "{:,.2f}".format(v | float).replace(",", " ").replace(".", ",") }} zł
+{%- endmacro %}
+
+{% macro fmt_date(d) %}
+  {{- d.strftime('%d.%m.%Y') if d else '—' -}}
+{% endmacro %}
+
+<div class="page-header">
+  <h1>📥 Należności</h1>
+  <span class="page-subtitle">Faktury sprzedażowe (FS) ze statusem OPEN</span>
+</div>
+
+{# ── FILTERS BAR ── #}
+<form method="GET" action="/receivables" id="filter-form" class="filter-bar">
+  <div class="filter-group">
+    <label for="entity">Podmiot</label>
+    <select name="entity" id="entity" onchange="this.form.submit()">
+      {% for opt in ['JDG', 'PV', 'Both'] %}
+        <option value="{{ opt }}" {{ 'selected' if entity == opt else '' }}>
+          {{ 'Oba' if opt == 'Both' else opt }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="filter-group filter-group--check">
+    <label class="check-label">
+      <input type="checkbox" name="overdue_only" value="on"
+             {{ 'checked' if overdue_only else '' }}
+             onchange="this.form.submit()">
+      Tylko przeterminowane
+    </label>
+  </div>
+
+  <div class="filter-group filter-summary">
+    <span>Łącznie: <strong>{{ grand_count }}</strong> faktur /
+    <strong>{{ fmt_amount(grand_total) }}</strong></span>
+  </div>
+</form>
+
+{# ── BUCKET SUMMARY CARDS ── #}
+<div class="aging-cards">
+  {% for b in bucket_summary %}
+    {% if not overdue_only or b.key != 'current' %}
+    <div class="aging-card" style="background:{{ b.bg_color }}; border-left: 4px solid {{ b.text_color }};">
+      <div class="aging-card__label" style="color:{{ b.text_color }};">{{ b.label }}</div>
+      <div class="aging-card__count">{{ b.count }} faktur</div>
+      <div class="aging-card__total" style="color:{{ b.text_color }};">{{ fmt_amount(b.total) }}</div>
+    </div>
+    {% endif %}
+  {% endfor %}
+</div>
+
+{# ── AGING TABLE ── #}
+{% set has_rows = namespace(value=false) %}
+{% for key in bucket_order %}
+  {% if grouped[key] %}{% set has_rows.value = true %}{% endif %}
+{% endfor %}
+
+{% if has_rows.value %}
+<div class="table-wrapper">
+  <table class="aging-table">
+    <thead>
+      <tr>
+        <th>Kontrahent</th>
+        <th>Numer faktury</th>
+        {% if entity == 'Both' %}<th>Podmiot</th>{% endif %}
+        <th class="text-right">Kwota PLN</th>
+        <th class="text-center">Termin płatności</th>
+        <th class="text-center">Dni po terminie</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for key in bucket_order %}
+        {% set rows = grouped[key] %}
+        {% if rows and (not overdue_only or key != 'current') %}
+
+          {# Group header row #}
+          <tr class="bucket-header" style="background:{{ subtotal_bg[key] }};">
+            <td colspan="{{ 7 if entity == 'Both' else 6 }}" class="bucket-header__label">
+              {{ bucket_labels[key] }}
+            </td>
+          </tr>
+
+          {# Data rows #}
+          {% for r in rows %}
+          <tr style="background:{{ row_bg[key] }};">
+            <td>{{ r.counterparty }}</td>
+            <td class="mono">{{ r.doc_number }}</td>
+            {% if entity == 'Both' %}<td class="entity-badge entity-badge--{{ r.entity | lower }}">{{ r.entity }}</td>{% endif %}
+            <td class="text-right mono">{{ fmt_amount(r.amount) }}</td>
+            <td class="text-center">{{ fmt_date(r.due_date) }}</td>
+            <td class="text-center {% if r.days_overdue > 0 %}overdue-days{% endif %}">
+              {% if r.days_overdue < 0 %}
+                za {{ (r.days_overdue * -1) }} dni
+              {% elif r.days_overdue == 0 %}
+                dziś
+              {% else %}
+                {{ r.days_overdue }} dni
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+
+          {# Subtotal row #}
+          {% set bucket_total = namespace(v=0) %}
+          {% for r in rows %}{% set bucket_total.v = bucket_total.v + r.amount %}{% endfor %}
+          <tr class="subtotal-row" style="background:{{ subtotal_bg[key] }};">
+            <td><strong>Suma: {{ bucket_labels[key] }}</strong></td>
+            <td class="mono"><strong>{{ rows | length }} faktur</strong></td>
+            {% if entity == 'Both' %}<td></td>{% endif %}
+            <td class="text-right mono"><strong>{{ fmt_amount(bucket_total.v) }}</strong></td>
+            <td></td>
+            <td></td>
+          </tr>
+
+        {% endif %}
+      {% endfor %}
+
+      {# Grand total #}
+      <tr class="grand-total-row">
+        <td><strong>RAZEM</strong></td>
+        <td class="mono"><strong>{{ grand_count }} faktur</strong></td>
+        {% if entity == 'Both' %}<td></td>{% endif %}
+        <td class="text-right mono"><strong>{{ fmt_amount(grand_total) }}</strong></td>
+        <td></td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <p>Brak należności spełniających kryteria.</p>
+</div>
+{% endif %}
+
+<style>
+/* ── Page header ── */
+.page-header { margin-bottom: 1.5rem; }
+.page-header h1 { margin: 0; font-size: 1.6rem; }
+.page-subtitle { color: var(--text-muted, #6b7280); font-size: 0.85rem; }
+
+/* ── Filter bar ── */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  padding: .75rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+.filter-group { display: flex; align-items: center; gap: .5rem; }
+.filter-group label { font-size: .85rem; font-weight: 600; color: var(--text-muted, #4b5563); }
+.filter-group select {
+  padding: .35rem .6rem;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 6px;
+  font-size: .9rem;
+  background: var(--input-bg, #f9fafb);
+  cursor: pointer;
+}
+.filter-group--check .check-label {
+  display: flex; align-items: center; gap: .4rem;
+  font-size: .9rem; cursor: pointer; font-weight: 500;
+}
+.filter-summary { margin-left: auto; font-size: .9rem; color: var(--text-muted, #6b7280); }
+
+/* ── Aging cards ── */
+.aging-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+.aging-card {
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  transition: transform .15s;
+}
+.aging-card:hover { transform: translateY(-2px); }
+.aging-card__label { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: .3rem; }
+.aging-card__count { font-size: .8rem; color: #374151; margin-bottom: .25rem; }
+.aging-card__total { font-size: 1.05rem; font-weight: 700; }
+
+/* ── Table ── */
+.table-wrapper { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border, #e5e7eb); }
+.aging-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.aging-table thead th {
+  background: var(--sidebar-bg, #1e293b);
+  color: #f1f5f9;
+  padding: .7rem 1rem;
+  text-align: left;
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  white-space: nowrap;
+}
+.aging-table tbody td { padding: .55rem 1rem; border-bottom: 1px solid rgba(0,0,0,.05); }
+
+.bucket-header td { padding: .45rem 1rem; }
+.bucket-header__label { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #374151; }
+
+.subtotal-row td { padding: .55rem 1rem; border-top: 2px solid rgba(0,0,0,.1); border-bottom: 2px solid rgba(0,0,0,.1); }
+.grand-total-row td {
+  padding: .7rem 1rem;
+  background: var(--sidebar-bg, #1e293b);
+  color: #f8fafc;
+  border-top: 3px solid #334155;
+}
+.grand-total-row .mono { font-family: 'Courier New', monospace; }
+
+.text-right  { text-align: right !important; }
+.text-center { text-align: center !important; }
+.mono { font-family: 'Courier New', monospace; font-size: .83rem; }
+
+.overdue-days { color: #dc2626; font-weight: 700; }
+
+.entity-badge { font-size: .75rem; font-weight: 700; text-align: center; }
+.entity-badge--jdg { color: #1d4ed8; }
+.entity-badge--pv  { color: #7c3aed; }
+
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-muted, #6b7280);
+  background: var(--card-bg, #fff);
+  border-radius: 10px;
+  border: 1px dashed var(--border, #d1d5db);
+}
+</style>
+{% endblock %}

@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block title %}Import danych — KARO CashFlow{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Import danych</h1>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SECTION 1 — SQL Server sync
+═══════════════════════════════════════════════════════════════════════════ -->
+<section class="card import-section">
+  <h2 class="section-title">
+    🗄️ Synchronizacja z Subiekt GT (SQL Server)
+  </h2>
+
+  <div class="sql-status">
+    <span class="status-dot {{ 'dot-green' if sql_ok else 'dot-red' }}"></span>
+    <span class="status-text {{ 'text-success' if sql_ok else 'text-danger' }}">
+      {{ sql_msg }}
+    </span>
+  </div>
+
+  <div class="sync-forms">
+
+    <!-- JDG -->
+    <div class="sync-form-box">
+      <h3>JDG — KARO Roman Bajdalski</h3>
+      <form method="POST" action="{{ url_for('import_data.sync_entity', entity='JDG') }}">
+        <label for="date_from_jdg">Synchronizuj od:</label>
+        <input id="date_from_jdg" type="date" name="date_from"
+               value="{{ default_from }}" class="input-date">
+        <button type="submit" class="btn btn-primary" {{ 'disabled' if not sql_ok }}>
+          🔄 Sync JDG
+        </button>
+      </form>
+      <p class="last-sync">
+        {% if last_sync.JDG %}
+          Ostatnia sync: <strong>{{ last_sync.JDG[:16] | replace('T',' ') }}</strong>
+        {% else %}
+          Brak danych — nie synchronizowano jeszcze.
+        {% endif %}
+      </p>
+    </div>
+
+    <!-- PV -->
+    <div class="sync-form-box">
+      <h3>PV — KARO PV sp. z o.o.</h3>
+      <form method="POST" action="{{ url_for('import_data.sync_entity', entity='PV') }}">
+        <label for="date_from_pv">Synchronizuj od:</label>
+        <input id="date_from_pv" type="date" name="date_from"
+               value="{{ default_from }}" class="input-date">
+        <button type="submit" class="btn btn-primary" {{ 'disabled' if not sql_ok }}>
+          🔄 Sync PV
+        </button>
+      </form>
+      <p class="last-sync">
+        {% if last_sync.PV %}
+          Ostatnia sync: <strong>{{ last_sync.PV[:16] | replace('T',' ') }}</strong>
+        {% else %}
+          Brak danych — nie synchronizowano jeszcze.
+        {% endif %}
+      </p>
+    </div>
+
+  </div><!-- /sync-forms -->
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SECTION 2 — Bank CSV upload
+═══════════════════════════════════════════════════════════════════════════ -->
+<section class="card import-section">
+  <h2 class="section-title">🏦 Import wyciągu bankowego (CSV)</h2>
+
+  <form method="POST" action="{{ url_for('import_data.import_bank') }}"
+        enctype="multipart/form-data" class="upload-form">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="bank_file">Plik CSV / TXT:</label>
+        <input id="bank_file" type="file" name="file" accept=".csv,.txt" required>
+      </div>
+
+      <div class="form-group">
+        <label for="account">Konto:</label>
+        <select id="account" name="account" class="input-select">
+          {% for acc in accounts %}
+            <option value="{{ acc }}">{{ acc }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group form-group--btn">
+        <button type="submit" class="btn btn-primary">📤 Wczytaj</button>
+      </div>
+    </div>
+
+  </form>
+
+  <!-- Last import per account -->
+  <table class="last-sync-table">
+    <thead>
+      <tr>
+        <th>Konto</th>
+        <th>Ostatni import</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for acc in accounts %}
+      <tr>
+        <td>{{ acc }}</td>
+        <td>
+          {% if last_bank[acc] %}
+            {{ last_bank[acc][:16] | replace('T',' ') }}
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SECTION 3 — Salary CSV upload
+═══════════════════════════════════════════════════════════════════════════ -->
+<section class="card import-section">
+  <h2 class="section-title">💼 Import wynagrodzeń (CSV)</h2>
+
+  <p class="help-text">
+    Wymagane kolumny: <code>Podmiot</code> (JDG/PV),
+    <code>Miesiac</code> (YYYY-MM), <code>Brutto_PLN</code>
+  </p>
+
+  <form method="POST" action="{{ url_for('import_data.import_salary') }}"
+        enctype="multipart/form-data" class="upload-form">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="salary_file">Plik CSV:</label>
+        <input id="salary_file" type="file" name="file" accept=".csv" required>
+      </div>
+
+      <div class="form-group form-group--btn">
+        <button type="submit" class="btn btn-primary">📤 Wczytaj</button>
+      </div>
+    </div>
+
+  </form>
+
+  <p class="last-sync">
+    {% if last_salary %}
+      Ostatni import: <strong>{{ last_salary[:16] | replace('T',' ') }}</strong>
+    {% else %}
+      Brak danych — nie importowano jeszcze.
+    {% endif %}
+  </p>
+</section>
+
+{% endblock %}

@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% block title %}Koszty – KARO CashFlow{% endblock %}
+
+{% block topbar_extra %}
+<form method="get" action="/costs" id="filter-form" class="topbar-form">
+  <label>Podmiot:
+    <select name="entity" onchange="document.getElementById('filter-form').submit()">
+      {% for e in ['JDG','PV','GROUP'] %}
+        <option value="{{ e }}" {{ 'selected' if entity == e else '' }}>{{ e }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Miesiąc:
+    <select name="month" onchange="document.getElementById('filter-form').submit()">
+      {% for ym in available_months %}
+        {% set ym_year = ym[:4]|int %}
+        {% set ym_month = ym[5:]|int %}
+        <option value="{{ ym_month }}"
+                {% if ym_year == year and ym_month == month %}selected{% endif %}
+                data-year="{{ ym_year }}">
+          {{ ym }}
+        </option>
+      {% endfor %}
+    </select>
+  </label>
+  <input type="hidden" name="year" id="year-input" value="{{ year }}">
+</form>
+{% endblock %}
+
+{% block content %}
+
+{# ── helpers ── #}
+{% macro fmt(v) %}{{ "{:,.2f}".format(v).replace(",", " ").replace(".", ",") }} zł{% endmacro %}
+
+{% macro delta_badge(curr, prev, invert=false) %}
+  {% if prev and prev != 0 %}
+    {% set pct = ((curr - prev) / prev * 100)|round(1) %}
+    {% if invert %}
+      {% set good = pct < 0 %}
+    {% else %}
+      {% set good = pct > 0 %}
+    {% endif %}
+    <span class="badge {{ 'badge-good' if good else 'badge-bad' }}">
+      {{ '+' if pct > 0 else '' }}{{ pct }}%
+    </span>
+  {% endif %}
+{% endmacro %}
+
+{# ── Summary cards ── #}
+{% set net = summary.revenue - summary.costs %}
+{% set prev_net = prev_summary.revenue - prev_summary.costs %}
+
+<div class="cards-row">
+
+  <div class="card card-blue">
+    <div class="card-label">Przychody</div>
+    <div class="card-value">{{ fmt(summary.revenue) }}</div>
+    {{ delta_badge(summary.revenue, prev_summary.revenue) }}
+  </div>
+
+  <div class="card card-red">
+    <div class="card-label">Koszty ogółem</div>
+    <div class="card-value">{{ fmt(summary.costs) }}</div>
+    {{ delta_badge(summary.costs, prev_summary.costs, invert=true) }}
+  </div>
+
+  <div class="card {{ 'card-green' if net >= 0 else 'card-red' }}">
+    <div class="card-label">Wynik netto</div>
+    <div class="card-value">{{ fmt(net) }}</div>
+    {{ delta_badge(net, prev_net) }}
+  </div>
+
+  <div class="card card-gray">
+    <div class="card-label">Wynagrodzenia</div>
+    <div class="card-value">{{ fmt(summary.salaries) }}</div>
+    {{ delta_badge(summary.salaries, prev_summary.salaries, invert=true) }}
+  </div>
+
+</div>
+
+{# ── Cost categories table ── #}
+{% set cats = summary.categories %}
+{% set prev_cats = summary.prev_month_categories %}
+{% set total_costs = cats.values()|sum %}
+
+{% if cats %}
+<section class="section">
+  <h2>Kategorie kosztów</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Kategoria</th>
+        <th>Kwota PLN</th>
+        <th>% kosztów</th>
+        <th>Delta vs poprz. miesiąc</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cat, amt in cats.items()|sort(attribute='1', reverse=true) %}
+        {% set prev_amt = prev_cats.get(cat, 0) %}
+        {% if prev_amt and prev_amt != 0 %}
+          {% set d_pct = ((amt - prev_amt) / prev_amt * 100)|round(1) %}
+        {% else %}
+          {% set d_pct = none %}
+        {% endif %}
+        {% set pct_total = (amt / total_costs * 100)|round(1) if total_costs else 0 %}
+
+        {% if d_pct is not none and d_pct > 50 %}
+          {% set row_style = 'background:#fff0f0' %}
+        {% elif d_pct is not none and d_pct > 20 %}
+          {% set row_style = 'background:#fffbea' %}
+        {% else %}
+          {% set row_style = '' %}
+        {% endif %}
+
+        <tr style="{{ row_style }}">
+          <td>{{ cat }}</td>
+          <td class="num">{{ fmt(amt) }}</td>
+          <td class="num">{{ pct_total }}%</td>
+          <td class="num">
+            {% if d_pct is not none %}
+              <span class="{{ 'badge-bad' if d_pct > 0 else 'badge-good' }}">
+                {{ '+' if d_pct > 0 else '' }}{{ d_pct }}%
+              </span>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{# ── Chart ── #}
+<section class="section">
+  <h2>Top 10 kategorii (wykres)</h2>
+  <canvas id="costsChart" height="120"></canvas>
+</section>
+{% else %}
+<p class="empty-state">Brak danych kosztowych dla wybranego okresu.</p>
+{% endif %}
+
+{# ── Internal transfers (collapsible) ── #}
+<section class="section">
+  <button class="collapsible-btn" onclick="toggleInternal()">
+    Przepływy wewnętrzne: {{ fmt(summary.internal_transfers) }}
+    <span id="int-arrow">▶</span>
+  </button>
+  <div id="internal-section" style="display:none; margin-top:8px;">
+    <p style="color:#666;">Kwota łączna przepływów wewnętrznych w wybranym miesiącu:<br>
+    <strong>{{ fmt(summary.internal_transfers) }}</strong></p>
+    <p style="font-size:.85rem;color:#999;">
+      Przepływy wewnętrzne są wykluczone z kalkulacji kosztów i przychodów w widoku GROUP.
+    </p>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Month select → sync hidden year input
+document.querySelector('[name="month"]').addEventListener('change', function() {
+  const opt = this.options[this.selectedIndex];
+  document.getElementById('year-input').value = opt.dataset.year;
+});
+
+// Collapsible internal transfers
+function toggleInternal() {
+  const sec = document.getElementById('internal-section');
+  const arrow = document.getElementById('int-arrow');
+  if (sec.style.display === 'none') {
+    sec.style.display = 'block';
+    arrow.textContent = '▼';
+  } else {
+    sec.style.display = 'none';
+    arrow.textContent = '▶';
+  }
+}
+
+// Chart.js
+{% if summary.categories %}
+const rawCats = {{ summary.categories | tojson }};
+const prevCats = {{ summary.prev_month_categories | tojson }};
+
+const sorted = Object.entries(rawCats)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 10);
+
+const labels = sorted.map(x => x[0]);
+const values = sorted.map(x => x[1]);
+
+const colors = sorted.map(([cat, amt]) => {
+  const prev = prevCats[cat] || 0;
+  if (prev > 0) {
+    const delta = (amt - prev) / prev * 100;
+    if (delta > 50) return '#e74c3c';
+  }
+  return '#2E75B6';
+});
+
+new Chart(document.getElementById('costsChart'), {
+  type: 'bar',
+  data: {
+    labels: labels,
+    datasets: [{
+      label: 'Kwota (PLN)',
+      data: values,
+      backgroundColor: colors,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const v = ctx.parsed.x;
+            return ' ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' zł';
+          }
+        }
+      }
+    },
+    scales: {
+      x: { ticks: { callback: v => v.toLocaleString('pl-PL') + ' zł' } }
+    }
+  }
+});
+{% endif %}
+</script>
+
+<style>
+.topbar-form { display:flex; gap:12px; align-items:center; }
+.topbar-form label { font-size:.85rem; }
+.topbar-form select { margin-left:4px; padding:4px 6px; border-radius:4px; border:1px solid #ddd; }
+
+.cards-row { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
+.card { flex:1; min-width:180px; padding:20px; border-radius:10px; color:#fff; box-shadow:0 2px 8px rgba(0,0,0,.12); }
+.card-label { font-size:.8rem; opacity:.85; margin-bottom:6px; }
+.card-value { font-size:1.5rem; font-weight:700; }
+.card-blue  { background:#2E75B6; }
+.card-red   { background:#c0392b; }
+.card-green { background:#27ae60; }
+.card-gray  { background:#636e72; }
+
+.badge, .badge-good, .badge-bad {
+  display:inline-block; padding:2px 7px; border-radius:20px;
+  font-size:.75rem; font-weight:600; margin-top:6px;
+}
+.badge-good { background:rgba(255,255,255,.25); color:#fff; }
+.badge-bad  { background:rgba(0,0,0,.2); color:#fff; }
+/* inside table — non-white bg */
+td .badge-good { background:#d4edda; color:#155724; }
+td .badge-bad  { background:#f8d7da; color:#721c24; }
+
+.section { margin-bottom:28px; }
+.section h2 { font-size:1rem; font-weight:600; margin-bottom:12px; color:#333; }
+
+.data-table { width:100%; border-collapse:collapse; font-size:.9rem; }
+.data-table th { background:#2E75B6; color:#fff; padding:8px 12px; text-align:left; }
+.data-table td { padding:8px 12px; border-bottom:1px solid #eee; }
+.data-table tr:hover td { background:#f5f8ff; }
+.num { text-align:right; font-variant-numeric:tabular-nums; }
+
+.empty-state { color:#888; padding:40px 0; text-align:center; }
+
+.collapsible-btn {
+  background:none; border:1px solid #ddd; border-radius:6px;
+  padding:10px 16px; cursor:pointer; width:100%;
+  text-align:left; font-size:.9rem; color:#333;
+}
+.collapsible-btn:hover { background:#f5f5f5; }
+</style>
+{% endblock %}

@@ -1,0 +1,358 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard — KARO CashFlow{% endblock %}
+
+{% block content %}
+
+{# ── Macro: Polish money format ─────────────────────────────────────────── #}
+{% macro pln(value) %}
+  {%- set neg = value < 0 -%}
+  {%- set abs_val = value | abs -%}
+  {%- set int_part = abs_val | int -%}
+  {%- set dec_part = ((abs_val - int_part) * 100) | round | int -%}
+  {%- set s = int_part | string -%}
+  {%- set chars = s[::-1] -%}
+  {%- set groups = [] -%}
+  {%- for i in range(0, chars | length, 3) -%}
+    {{ groups.append(chars[i:i+3][::-1]) or '' }}
+  {%- endfor -%}
+  {%- set groups = groups[::-1] -%}
+  {{ '-' if neg }}{{ groups | join('\u00a0') }},{{ '%02d' % dec_part }}&nbsp;zł
+{% endmacro %}
+
+{# ── KPI CARDS ──────────────────────────────────────────────────────────── #}
+<section class="kpi-grid">
+
+  <div class="kpi-card">
+    <div class="kpi-value">{{ pln(revenue) }}</div>
+    <div class="kpi-label">Przychody (miesiąc)</div>
+    <div class="kpi-sub">JDG + PV, bez wewnętrznych</div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-value">{{ pln(costs) }}</div>
+    <div class="kpi-label">Koszty (miesiąc)</div>
+    <div class="kpi-sub">JDG + PV, bez wewnętrznych</div>
+  </div>
+
+  <div class="kpi-card {% if cf_net >= 0 %}kpi-positive{% else %}kpi-negative{% endif %}">
+    <div class="kpi-value">{{ pln(cf_net) }}</div>
+    <div class="kpi-label">Cash Flow netto</div>
+    <div class="kpi-sub">Przychody − Koszty</div>
+  </div>
+
+  <div class="kpi-card {% if overdue > 0 %}kpi-negative{% else %}kpi-neutral{% endif %}">
+    <div class="kpi-value">{{ pln(overdue) }}</div>
+    <div class="kpi-label">Należności przeterminowane</div>
+    <div class="kpi-sub">JDG + PV, faktury OPEN</div>
+  </div>
+
+</section>
+
+{# ── CHART ──────────────────────────────────────────────────────────────── #}
+<section class="card chart-card">
+  <h2 class="section-title">Przychody — ostatnie 6 miesięcy</h2>
+  <div class="chart-wrap">
+    <canvas id="revenueChart"></canvas>
+  </div>
+</section>
+
+{# ── TABLES ─────────────────────────────────────────────────────────────── #}
+<section class="tables-grid">
+
+  {# LEFT — overdue receivables #}
+  <div class="card table-card">
+    <h2 class="section-title">⚠️ Top 5 przeterminowane należności</h2>
+    {% if overdue_rows %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Kontrahent</th>
+          <th class="num">Kwota PLN</th>
+          <th class="num">Dni po terminie</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in overdue_rows %}
+          {% set days = row['days_overdue'] or 0 %}
+          {% if days > 90 %}
+            {% set row_class = 'row-red' %}
+          {% elif days > 30 %}
+            {% set row_class = 'row-orange' %}
+          {% else %}
+            {% set row_class = 'row-amber' %}
+          {% endif %}
+        <tr class="{{ row_class }}">
+          <td>{{ row['counterparty'] or '—' }}</td>
+          <td class="num">{{ pln(row['total'] or 0) }}</td>
+          <td class="num">{{ days }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <p class="empty-state">Brak przeterminowanych należności 🎉</p>
+    {% endif %}
+  </div>
+
+  {# RIGHT — upcoming payables #}
+  <div class="card table-card">
+    <h2 class="section-title">📅 Zobowiązania do zapłaty (14 dni)</h2>
+    {% if payable_rows %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Dostawca</th>
+          <th class="num">Kwota PLN</th>
+          <th>Termin płatności</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in payable_rows %}
+        <tr>
+          <td>
+            {{ row['counterparty'] or '—' }}
+            {% if row['is_internal'] %}
+              <span class="badge-int">INT</span>
+            {% endif %}
+          </td>
+          <td class="num">{{ pln(row['total'] or 0) }}</td>
+          <td>{{ row['due_date'] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <p class="empty-state">Brak zobowiązań w najbliższych 14 dniach ✅</p>
+    {% endif %}
+  </div>
+
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  const labels   = {{ chart_labels   | tojson }};
+  const jdgData  = {{ chart_jdg_rev  | tojson }};
+  const pvData   = {{ chart_pv_rev   | tojson }};
+
+  const ctx = document.getElementById('revenueChart').getContext('2d');
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'JDG — Przychody',
+          data: jdgData,
+          borderColor: '#2E75B6',
+          backgroundColor: 'rgba(46,117,182,0.08)',
+          borderWidth: 2.5,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          tension: 0.35,
+          fill: true,
+        },
+        {
+          label: 'PV — Przychody',
+          data: pvData,
+          borderColor: '#2E75B6',
+          backgroundColor: 'transparent',
+          borderWidth: 2.5,
+          borderDash: [5, 5],
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          tension: 0.35,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { color: '#cdd6f4', font: { size: 13 } },
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const v = ctx.parsed.y;
+              const formatted = new Intl.NumberFormat('pl-PL', {
+                minimumFractionDigits: 2, maximumFractionDigits: 2
+              }).format(v);
+              return ` ${ctx.dataset.label}: ${formatted} zł`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#a6adc8' },
+          grid:  { color: 'rgba(255,255,255,0.06)' },
+        },
+        y: {
+          ticks: {
+            color: '#a6adc8',
+            callback: (v) => new Intl.NumberFormat('pl-PL', {
+              maximumFractionDigits: 0
+            }).format(v) + ' zł',
+          },
+          grid: { color: 'rgba(255,255,255,0.06)' },
+        },
+      },
+    },
+  });
+})();
+</script>
+
+<style>
+/* ── KPI Grid ──────────────────────────────────────────────────────────── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.kpi-card {
+  background: var(--card-bg, #1e1e2e);
+  border: 1px solid var(--border, #313244);
+  border-radius: 12px;
+  padding: 1.4rem 1.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  transition: box-shadow 0.2s;
+}
+
+.kpi-card:hover {
+  box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+}
+
+.kpi-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--text, #cdd6f4);
+  white-space: nowrap;
+}
+
+.kpi-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted, #6c7086);
+}
+
+.kpi-sub {
+  font-size: 0.72rem;
+  color: var(--muted, #6c7086);
+}
+
+.kpi-positive .kpi-value { color: #a6e3a1; }
+.kpi-negative .kpi-value { color: #f38ba8; }
+.kpi-neutral  .kpi-value { color: #cdd6f4; }
+
+/* ── Chart ─────────────────────────────────────────────────────────────── */
+.chart-card {
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+}
+
+.chart-wrap {
+  position: relative;
+  height: 300px;
+}
+
+/* ── Tables ────────────────────────────────────────────────────────────── */
+.tables-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 860px) {
+  .tables-grid { grid-template-columns: 1fr; }
+}
+
+.table-card {
+  padding: 1.25rem 1.4rem;
+  overflow-x: auto;
+}
+
+.section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text, #cdd6f4);
+  margin: 0 0 1rem;
+  letter-spacing: 0.02em;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border, #313244);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted, #6c7086);
+}
+
+.data-table td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  color: var(--text, #cdd6f4);
+  vertical-align: middle;
+}
+
+.data-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Row colour coding */
+.row-red    td { background: rgba(243,139,168,0.10); }
+.row-orange td { background: rgba(250,179,135,0.10); }
+.row-amber  td { background: rgba(249,226,175,0.08); }
+
+/* Internal badge */
+.badge-int {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(166,173,200,0.15);
+  color: #a6adc8;
+  margin-left: 4px;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--muted, #6c7086);
+  font-size: 0.88rem;
+  padding: 1.5rem 0;
+}
+
+/* Ensure card class exists if not already in style.css */
+.card {
+  background: var(--card-bg, #1e1e2e);
+  border: 1px solid var(--border, #313244);
+  border-radius: 12px;
+}
+</style>
+{% endblock %}

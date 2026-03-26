@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block title %}Zobowiązania – KARO CashFlow{% endblock %}
+
+{% block content %}
+
+{# ── Helpers ── #}
+{% macro fmt_amount(v) %}
+  {{- "{:,.2f}".format(v | float).replace(",", " ").replace(".", ",") }} zł
+{%- endmacro %}
+
+{% macro fmt_date(d) %}
+  {{- d.strftime('%d.%m.%Y') if d else '—' -}}
+{% endmacro %}
+
+<div class="page-header">
+  <h1>📤 Zobowiązania</h1>
+  <span class="page-subtitle">Faktury zakupowe (FZ) ze statusem OPEN</span>
+</div>
+
+{# ── FILTERS BAR ── #}
+<form method="GET" action="/payables" id="filter-form" class="filter-bar">
+  <div class="filter-group">
+    <label>Podmiot</label>
+    <div class="btn-group">
+      {% for opt in ['JDG', 'PV', 'Both'] %}
+        <button type="submit" name="entity" value="{{ opt }}"
+                class="btn-entity {{ 'btn-entity--active' if entity == opt else '' }}"
+                {% if hide_internal %}onclick="document.getElementById('hi').value='on'"{% endif %}>
+          {{ 'Oba' if opt == 'Both' else opt }}
+        </button>
+      {% endfor %}
+    </div>
+    {# Hidden entity value so checkbox change can keep entity #}
+    <input type="hidden" name="entity" value="{{ entity }}" id="entity-hidden">
+  </div>
+
+  <div class="filter-group filter-group--check">
+    <label class="check-label">
+      <input type="checkbox" name="hide_internal" id="hide_internal" value="on"
+             {{ 'checked' if hide_internal else '' }}
+             onchange="this.form.submit()">
+      Ukryj przepływy wewnętrzne
+    </label>
+  </div>
+
+  <div class="filter-summary">
+    Łącznie: <strong>{{ grand_count }}</strong> faktur /
+    <strong>{{ fmt_amount(grand_total) }}</strong>
+  </div>
+</form>
+
+{# ── SUMMARY CARDS ── #}
+<div class="summary-cards">
+  <div class="summary-card summary-card--red">
+    <div class="summary-card__icon">🔴</div>
+    <div class="summary-card__label">Przeterminowane</div>
+    <div class="summary-card__value">{{ fmt_amount(overdue_total) }}</div>
+  </div>
+  <div class="summary-card summary-card--amber">
+    <div class="summary-card__icon">🟡</div>
+    <div class="summary-card__label">Płatne w ciągu 7 dni</div>
+    <div class="summary-card__value">{{ fmt_amount(due_7_total) }}</div>
+  </div>
+  <div class="summary-card summary-card--yellow">
+    <div class="summary-card__icon">🟠</div>
+    <div class="summary-card__label">Płatne w ciągu 30 dni</div>
+    <div class="summary-card__value">{{ fmt_amount(due_30_total) }}</div>
+  </div>
+</div>
+
+{# ── PAYABLES TABLE ── #}
+{% if rows %}
+<div class="table-wrapper">
+  <table class="payables-table">
+    <thead>
+      <tr>
+        <th>Dostawca</th>
+        <th>Numer faktury</th>
+        <th class="text-right">Kwota PLN</th>
+        <th class="text-center">Termin płatności</th>
+        <th class="text-center">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {# Overdue rows first, then upcoming — already sorted by due_date ASC
+         We output overdue block, then non-overdue block #}
+
+      {# ---- OVERDUE ---- #}
+      {% set overdue_rows = rows | selectattr('days_until_due', 'lt', 0) | list %}
+      {% if overdue_rows %}
+        <tr class="section-header section-header--red">
+          <td colspan="5">🔴 PRZETERMINOWANE ({{ overdue_rows | length }})</td>
+        </tr>
+        {% for r in overdue_rows %}
+        <tr class="row-overdue">
+          <td>
+            {{ r.counterparty }}
+            {% if r.is_internal %}<span class="badge-int">INT</span>{% endif %}
+          </td>
+          <td class="mono">{{ r.doc_number }}</td>
+          <td class="text-right mono">{{ fmt_amount(r.amount) }}</td>
+          <td class="text-center">{{ fmt_date(r.due_date) }}</td>
+          <td class="text-center">
+            <span class="status-badge status-badge--red">
+              PRZETERMINOWANE {{ (r.days_until_due * -1) }} dni
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      {% endif %}
+
+      {# ---- UPCOMING ---- #}
+      {% set upcoming_rows = rows | rejectattr('days_until_due', 'lt', 0) | list %}
+      {% if upcoming_rows %}
+        <tr class="section-header section-header--gray">
+          <td colspan="5">📅 Nadchodzące ({{ upcoming_rows | length }})</td>
+        </tr>
+        {% for r in upcoming_rows %}
+          {% if r.days_until_due <= 7 %}
+            {% set row_class = 'row-amber' %}
+            {% set badge_class = 'status-badge--amber' %}
+          {% elif r.days_until_due <= 30 %}
+            {% set row_class = 'row-yellow' %}
+            {% set badge_class = 'status-badge--yellow' %}
+          {% else %}
+            {% set row_class = 'row-normal' %}
+            {% set badge_class = 'status-badge--gray' %}
+          {% endif %}
+        <tr class="{{ row_class }}">
+          <td>
+            {{ r.counterparty }}
+            {% if r.is_internal %}<span class="badge-int">INT</span>{% endif %}
+          </td>
+          <td class="mono">{{ r.doc_number }}</td>
+          <td class="text-right mono">{{ fmt_amount(r.amount) }}</td>
+          <td class="text-center">{{ fmt_date(r.due_date) }}</td>
+          <td class="text-center">
+            <span class="status-badge {{ badge_class }}">
+              {{ r.days_until_due }} dni
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      {% endif %}
+
+      {# ---- GRAND TOTAL ---- #}
+      <tr class="grand-total-row">
+        <td><strong>RAZEM</strong></td>
+        <td class="mono"><strong>{{ grand_count }} faktur</strong></td>
+        <td class="text-right mono"><strong>{{ fmt_amount(grand_total) }}</strong></td>
+        <td></td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <p>Brak zobowiązań spełniających kryteria.</p>
+</div>
+{% endif %}
+
+<style>
+/* ── Page header ── */
+.page-header { margin-bottom: 1.5rem; }
+.page-header h1 { margin: 0; font-size: 1.6rem; }
+.page-subtitle { color: var(--text-muted, #6b7280); font-size: 0.85rem; }
+
+/* ── Filter bar ── */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  padding: .75rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+.filter-group { display: flex; align-items: center; gap: .5rem; }
+.filter-group label { font-size: .85rem; font-weight: 600; color: var(--text-muted, #4b5563); }
+.filter-group--check .check-label {
+  display: flex; align-items: center; gap: .4rem;
+  font-size: .9rem; cursor: pointer; font-weight: 500;
+}
+.filter-summary { margin-left: auto; font-size: .9rem; color: var(--text-muted, #6b7280); }
+
+/* ── Entity button group ── */
+.btn-group { display: flex; border-radius: 7px; overflow: hidden; border: 1px solid var(--border, #d1d5db); }
+.btn-entity {
+  padding: .3rem .85rem;
+  border: none;
+  background: var(--input-bg, #f9fafb);
+  font-size: .85rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: #374151;
+  border-right: 1px solid var(--border, #d1d5db);
+  transition: background .15s, color .15s;
+}
+.btn-entity:last-child { border-right: none; }
+.btn-entity:hover { background: #e5e7eb; }
+.btn-entity--active { background: #1e293b; color: #f8fafc; }
+
+/* ── Summary cards ── */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+@media (max-width: 640px) { .summary-cards { grid-template-columns: 1fr; } }
+
+.summary-card {
+  border-radius: 10px;
+  padding: 1.1rem 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+  border-left: 4px solid transparent;
+}
+.summary-card__icon { font-size: 1.3rem; }
+.summary-card__label { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.summary-card__value { font-size: 1.2rem; font-weight: 800; font-family: 'Courier New', monospace; }
+
+.summary-card--red    { background: #fef2f2; border-left-color: #dc2626; }
+.summary-card--red    .summary-card__label { color: #991b1b; }
+.summary-card--red    .summary-card__value { color: #dc2626; }
+
+.summary-card--amber  { background: #fffbeb; border-left-color: #d97706; }
+.summary-card--amber  .summary-card__label { color: #92400e; }
+.summary-card--amber  .summary-card__value { color: #d97706; }
+
+.summary-card--yellow { background: #fefce8; border-left-color: #ca8a04; }
+.summary-card--yellow .summary-card__label { color: #854d0e; }
+.summary-card--yellow .summary-card__value { color: #ca8a04; }
+
+/* ── Table ── */
+.table-wrapper { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border, #e5e7eb); }
+.payables-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.payables-table thead th {
+  background: var(--sidebar-bg, #1e293b);
+  color: #f1f5f9;
+  padding: .7rem 1rem;
+  text-align: left;
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  white-space: nowrap;
+}
+.payables-table tbody td { padding: .55rem 1rem; border-bottom: 1px solid rgba(0,0,0,.05); }
+
+/* Section headers */
+.section-header td {
+  padding: .45rem 1rem;
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.section-header--red  td { background: #fee2e2; color: #991b1b; }
+.section-header--gray td { background: #f3f4f6; color: #374151; }
+
+/* Row colouring */
+.row-overdue td { background: #fff5f5; }
+.row-overdue:hover td { background: #fee2e2; }
+.row-amber td   { background: #fffbeb; }
+.row-amber:hover td { background: #fef3c7; }
+.row-yellow td  { background: #fefce8; }
+.row-yellow:hover td { background: #fef9c3; }
+.row-normal td  { background: #fff; }
+.row-normal:hover td { background: #f9fafb; }
+
+/* Status badges */
+.status-badge {
+  display: inline-block;
+  padding: .2rem .55rem;
+  border-radius: 20px;
+  font-size: .75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.status-badge--red    { background: #fee2e2; color: #dc2626; }
+.status-badge--amber  { background: #fef3c7; color: #d97706; }
+.status-badge--yellow { background: #fef9c3; color: #ca8a04; }
+.status-badge--gray   { background: #f3f4f6; color: #4b5563; }
+
+/* Internal badge */
+.badge-int {
+  display: inline-block;
+  margin-left: .4rem;
+  padding: .1rem .35rem;
+  border-radius: 4px;
+  font-size: .68rem;
+  font-weight: 700;
+  background: #e5e7eb;
+  color: #6b7280;
+  vertical-align: middle;
+}
+
+/* Grand total */
+.grand-total-row td {
+  padding: .7rem 1rem;
+  background: var(--sidebar-bg, #1e293b);
+  color: #f8fafc;
+  border-top: 3px solid #334155;
+}
+.grand-total-row .mono { font-family: 'Courier New', monospace; }
+
+/* Utilities */
+.text-right  { text-align: right !important; }
+.text-center { text-align: center !important; }
+.mono { font-family: 'Courier New', monospace; font-size: .83rem; }
+
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-muted, #6b7280);
+  background: var(--card-bg, #fff);
+  border-radius: 10px;
+  border: 1px dashed var(--border, #d1d5db);
+}
+</style>
+{% endblock %}

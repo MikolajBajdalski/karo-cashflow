@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+
+{% block title %}Raport AI — KARO CashFlow{% endblock %}
+
+{% block content %}
+<style>
+  /* ── AI Report Page Styles ─────────────────────────────────────────── */
+  .ai-report-page {
+    display: grid;
+    grid-template-columns: 1fr 240px;
+    gap: 24px;
+    align-items: start;
+  }
+
+  @media (max-width: 900px) {
+    .ai-report-page {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Controls bar */
+  .controls-bar {
+    background: var(--card-bg, #1e1e2e);
+    border: 1px solid var(--border, #333);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .entity-toggle {
+    display: flex;
+    gap: 0;
+    border-radius: 7px;
+    overflow: hidden;
+    border: 1px solid var(--border, #444);
+  }
+  .entity-toggle a {
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--text-muted, #aaa);
+    background: transparent;
+    transition: all 0.15s ease;
+  }
+  .entity-toggle a.active,
+  .entity-toggle a:hover {
+    background: var(--accent, #7c63f5);
+    color: #fff;
+  }
+
+  .period-selects {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .period-selects select {
+    background: var(--card-bg, #1e1e2e);
+    color: var(--text, #e0e0e0);
+    border: 1px solid var(--border, #444);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .controls-bar form {
+    display: inline-flex;
+    gap: 8px;
+  }
+
+  .btn {
+    padding: 7px 16px;
+    border: none;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: opacity 0.15s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn-primary { background: var(--accent, #7c63f5); color: #fff; }
+  .btn-secondary { background: var(--border, #444); color: var(--text, #e0e0e0); }
+  .btn:disabled, .btn.disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* Report card */
+  .report-card {
+    background: var(--card-bg, #1e1e2e);
+    border: 1px solid var(--border, #333);
+    border-radius: 10px;
+    padding: 24px;
+    min-height: 200px;
+  }
+
+  .report-placeholder {
+    color: var(--text-muted, #888);
+    font-style: italic;
+    text-align: center;
+    padding: 48px 20px;
+  }
+
+  .report-body p {
+    margin: 4px 0;
+    line-height: 1.6;
+    font-size: 14px;
+    color: var(--text, #ddd);
+  }
+
+  .report-body h3.report-section {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--accent, #9d87ff);
+    border-left: 3px solid var(--accent, #9d87ff);
+    padding-left: 10px;
+    margin: 20px 0 8px;
+  }
+
+  .report-body p.list-item {
+    margin-left: 16px;
+  }
+
+  .report-body br {
+    display: block;
+    content: "";
+    margin: 6px 0;
+  }
+
+  .report-meta {
+    margin-top: 16px;
+    font-size: 11px;
+    color: var(--text-muted, #888);
+    border-top: 1px solid var(--border, #333);
+    padding-top: 10px;
+  }
+
+  /* CEO Notes */
+  .ceo-notes {
+    background: var(--card-bg, #1e1e2e);
+    border: 1px solid var(--border, #333);
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+  }
+
+  .ceo-notes h4 {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted, #aaa);
+    margin-bottom: 12px;
+  }
+
+  .note-item {
+    padding: 8px 10px;
+    border-left: 3px solid var(--border, #444);
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: var(--text, #ddd);
+  }
+
+  .note-item .note-date {
+    font-size: 11px;
+    color: var(--text-muted, #888);
+    margin-top: 3px;
+  }
+
+  .note-form {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .note-form textarea {
+    background: var(--bg, #15151f);
+    color: var(--text, #ddd);
+    border: 1px solid var(--border, #444);
+    border-radius: 7px;
+    padding: 10px;
+    font-size: 13px;
+    resize: vertical;
+    min-height: 80px;
+  }
+
+  /* History sidebar */
+  .history-sidebar {
+    background: var(--card-bg, #1e1e2e);
+    border: 1px solid var(--border, #333);
+    border-radius: 10px;
+    padding: 16px;
+  }
+
+  .history-sidebar h4 {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted, #aaa);
+    margin-bottom: 12px;
+  }
+
+  .history-sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .history-sidebar ul li a {
+    display: block;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    text-decoration: none;
+    color: var(--text-muted, #aaa);
+    transition: all 0.15s;
+  }
+
+  .history-sidebar ul li a:hover,
+  .history-sidebar ul li a.active {
+    background: var(--accent, #7c63f5);
+    color: #fff;
+  }
+
+  .no-history {
+    font-size: 12px;
+    color: var(--text-muted, #888);
+    font-style: italic;
+  }
+</style>
+
+{# ── Helpers ──────────────────────────────────────────────────────── #}
+{% macro make_url(e=entity, y=year, m=month) %}{{ url_for('ai_report.index', entity=e, year=y, month=m) }}{% endmacro %}
+
+{# ── Controls Bar ─────────────────────────────────────────────────── #}
+<div class="controls-bar">
+
+  {# Entity toggle #}
+  <div class="entity-toggle">
+    {% for e in entities %}
+      <a href="{{ url_for('ai_report.index', entity=e, year=year, month=month) }}"
+         class="{{ 'active' if entity == e else '' }}">{{ e }}</a>
+    {% endfor %}
+  </div>
+
+  {# Period selectors shared form #}
+  <form method="GET" action="{{ url_for('ai_report.index') }}" class="period-selects" id="period-form">
+    <input type="hidden" name="entity" value="{{ entity }}">
+    <select name="year" onchange="this.form.submit()">
+      {% for y in range(2024, 2028) %}
+        <option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>
+      {% endfor %}
+    </select>
+    <select name="month" onchange="this.form.submit()">
+      {% for m_num, m_name in polish_months.items() %}
+        <option value="{{ m_num }}" {{ 'selected' if m_num == month }}>{{ m_name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+
+  {# Generate button — separate POST form #}
+  <form method="POST" action="{{ url_for('ai_report.generate') }}">
+    <input type="hidden" name="entity" value="{{ entity }}">
+    <input type="hidden" name="year" value="{{ year }}">
+    <input type="hidden" name="month" value="{{ month }}">
+    <button type="submit" class="btn btn-primary">🤖 Generuj raport</button>
+  </form>
+
+  {# PDF export #}
+  {% if report %}
+    <a href="{{ url_for('ai_report.export_pdf', period=period, entity=entity) }}"
+       class="btn btn-secondary">📄 Eksportuj PDF</a>
+  {% else %}
+    <span class="btn btn-secondary disabled">📄 Eksportuj PDF</span>
+  {% endif %}
+
+</div>
+
+{# ── Main layout: content + sidebar ──────────────────────────────── #}
+<div class="ai-report-page">
+
+  {# Left column: report + notes #}
+  <div class="main-col">
+
+    {# Report card #}
+    <div class="report-card">
+      {% if report %}
+        <div class="report-body">
+          {{ report_html | safe }}
+        </div>
+        <div class="report-meta">
+          Wygenerowano: {{ report.created_at }} &nbsp;|&nbsp; Tokeny: {{ "{:,}".format(report.tokens_used or 0) }}
+        </div>
+      {% else %}
+        <div class="report-placeholder">
+          Brak raportu dla wybranego okresu.<br>Kliknij <strong>Generuj raport</strong>, aby go wygenerować.
+        </div>
+      {% endif %}
+    </div>
+
+    {# CEO Notes #}
+    <div class="ceo-notes">
+      <h4>📝 Notatki dla kolejnego raportu</h4>
+
+      {% if ceo_notes %}
+        {% for note in ceo_notes %}
+          <div class="note-item">
+            {{ note.note }}
+            <div class="note-date">{{ note.created_at }}</div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p style="font-size:12px; color:var(--text-muted,#888); font-style:italic;">Brak notatek dla tego okresu.</p>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('ai_report.save_note') }}" class="note-form">
+        <input type="hidden" name="period" value="{{ period }}">
+        <input type="hidden" name="entity" value="{{ entity }}">
+        <input type="hidden" name="year" value="{{ year }}">
+        <input type="hidden" name="month" value="{{ month }}">
+        <textarea name="note_text" placeholder="Wpisz notatkę dla AI na kolejny raport..."></textarea>
+        <div>
+          <button type="submit" class="btn btn-primary">💾 Zapisz notatkę</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# Right column: history sidebar #}
+  <div class="history-sidebar">
+    <h4>📂 Historia raportów</h4>
+    {% if available_periods %}
+      <ul>
+        {% for p in available_periods %}
+          <li>
+            <a href="{{ url_for('ai_report.index', entity=entity, period=p,
+                         year=p[:4], month=p[5:7]|int) }}"
+               class="{{ 'active' if p == period else '' }}">
+              {{ entity }} {{ p }}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="no-history">Brak historii raportów.</p>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

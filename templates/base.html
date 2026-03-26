@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}KARO CashFlow{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="layout">
+  <!-- ── Sidebar (placeholder — fully built in Command 12) ── -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-brand">KARO CashFlow</div>
+    <ul class="sidebar-nav">
+      <li><a href="{{ url_for('dashboard.index') }}"
+             class="{{ 'active' if request.endpoint == 'dashboard.index' else '' }}">
+        📊 Dashboard</a></li>
+      <li><a href="/costs"
+             class="{{ 'active' if request.endpoint == 'costs.index' else '' }}">
+        💰 Koszty</a></li>
+      <li><a href="/ai-report"
+             class="{{ 'active' if request.endpoint == 'ai_report.index' else '' }}">
+        🤖 Raport AI</a></li>
+      <li><a href="/receivables"
+             class="{{ 'active' if request.endpoint == 'receivables.index' else '' }}">
+        📥 Należności</a></li>
+      <li><a href="/payables"
+             class="{{ 'active' if request.endpoint == 'payables.index' else '' }}">
+        📤 Zobowiązania</a></li>
+      <li><a href="{{ url_for('import_data.import_page') }}"
+             class="{{ 'active' if request.endpoint and 'import_data' in request.endpoint else '' }}">
+        📂 Import danych</a></li>
+    </ul>
+  </nav>
+
+  <!-- ── Main area ── -->
+  <div class="main">
+    <header class="topbar">
+      <span class="topbar-date">{{ now.strftime('%d.%m.%Y') if now is defined else '' }}</span>
+      {% block topbar_extra %}{% endblock %}
+    </header>
+
+    <div class="content">
+      <!-- Flash messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-container">
+            {% for category, msg in messages %}
+              <div class="flash flash-{{ category }}">{{ msg }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='main.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

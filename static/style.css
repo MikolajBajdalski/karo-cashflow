@@ -1,0 +1,93 @@
+/* KARO CashFlow — minimal base styles (fully replaced in Command 12) */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+       background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+/* Layout */
+.layout { display: flex; min-height: 100vh; }
+.sidebar { width: 220px; background: #1a1d27; padding: 1.5rem 0; flex-shrink: 0; }
+.sidebar-brand { font-size: 1rem; font-weight: 700; color: #7c3aed;
+                  padding: 0 1.25rem 1.5rem; letter-spacing: .03em; }
+.sidebar-nav { list-style: none; }
+.sidebar-nav li a { display: block; padding: .6rem 1.25rem; color: #94a3b8;
+                     text-decoration: none; font-size: .875rem; border-radius: 6px;
+                     margin: 2px .5rem; }
+.sidebar-nav li a:hover, .sidebar-nav li a.active
+                        { background: rgba(124,58,237,.15); color: #a78bfa; }
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.topbar { padding: .75rem 2rem; background: #1a1d27;
+          border-bottom: 1px solid #2d3148; font-size: .8rem; color: #64748b; }
+.content { padding: 2rem; overflow-y: auto; }
+
+/* Cards */
+.card { background: #1e2130; border: 1px solid #2d3148; border-radius: 12px;
+        padding: 1.75rem; margin-bottom: 1.5rem; }
+.page-header h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1.5rem;
+                  color: #f1f5f9; }
+.section-title { font-size: 1rem; font-weight: 600; color: #c4b5fd;
+                  margin-bottom: 1.25rem; }
+
+/* Status dot */
+.sql-status { display: flex; align-items: center; gap: .6rem; margin-bottom: 1.25rem; }
+.status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dot-green { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,.5); }
+.dot-red   { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,.5); }
+.text-success { color: #4ade80; font-size: .875rem; }
+.text-danger  { color: #f87171; font-size: .875rem; }
+
+/* Sync forms side by side */
+.sync-forms { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.sync-form-box { background: #252840; border: 1px solid #2d3148; border-radius: 8px;
+                  padding: 1.25rem; }
+.sync-form-box h3 { font-size: .875rem; color: #94a3b8; margin-bottom: 1rem; }
+.sync-form-box form { display: flex; flex-direction: column; gap: .6rem; }
+.input-date { background: #1a1d27; border: 1px solid #3d4166; border-radius: 6px;
+              color: #e2e8f0; padding: .45rem .75rem; font-size: .875rem; width: 100%;
+              color-scheme: dark; }
+
+/* Upload form */
+.upload-form { margin-bottom: 1.25rem; }
+.form-row { display: flex; align-items: flex-end; gap: 1.25rem; flex-wrap: wrap; }
+.form-group { display: flex; flex-direction: column; gap: .4rem; }
+.form-group label { font-size: .8rem; color: #94a3b8; }
+.form-group--btn { justify-content: flex-end; }
+.input-select { background: #1a1d27; border: 1px solid #3d4166; border-radius: 6px;
+                color: #e2e8f0; padding: .45rem .75rem; font-size: .875rem; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: .4rem; padding: .5rem 1.1rem;
+       border: none; border-radius: 7px; font-size: .875rem; font-weight: 600;
+       cursor: pointer; transition: opacity .15s; }
+.btn:hover { opacity: .85; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-primary { background: #7c3aed; color: #fff; }
+
+/* Table */
+.last-sync-table { width: 100%; border-collapse: collapse; font-size: .82rem;
+                    margin-top: .75rem; }
+.last-sync-table th, .last-sync-table td
+                        { text-align: left; padding: .5rem .75rem;
+                          border-bottom: 1px solid #2d3148; }
+.last-sync-table th { color: #64748b; font-weight: 600; }
+
+/* Last sync text + help */
+.last-sync { font-size: .8rem; color: #64748b; margin-top: .75rem; }
+.help-text  { font-size: .8rem; color: #64748b; margin-bottom: .9rem; }
+.muted      { color: #3d4166; }
+
+/* Flash messages */
+.flash-container { margin-bottom: 1.25rem; display: flex; flex-direction: column;
+                   gap: .5rem; }
+.flash { padding: .75rem 1rem; border-radius: 8px; font-size: .875rem; }
+.flash-success { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.3);
+                 color: #4ade80; }
+.flash-danger  { background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.3);
+                 color: #f87171; }
+.flash-info    { background: rgba(59,130,246,.12); border: 1px solid rgba(59,130,246,.3);
+                 color: #93c5fd; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sync-forms { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+}
