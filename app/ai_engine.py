@@ -217,7 +217,7 @@ def generate_report(entity, year, month):
 
         # 3. Call API
         message = client.messages.create(
-            model="claude-sonnet-4-5",
+            model="claude-sonnet-4-6",
             max_tokens=2000,
             messages=[{"role": "user", "content": prompt}]
         )

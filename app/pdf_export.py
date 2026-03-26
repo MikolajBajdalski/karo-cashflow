@@ -13,6 +13,27 @@ def report_text_to_html(text):
     while i < len(lines):
         line = lines[i]
 
+        # Markdown h1: # Title
+        m = re.match(r"^#\s+(.+)$", line)
+        if m:
+            html_parts.append(f'<h2 class="report-section">{m.group(1)}</h2>')
+            i += 1
+            continue
+
+        # Markdown h2: ## Title
+        m = re.match(r"^##\s+(.+)$", line)
+        if m:
+            html_parts.append(f'<h2 class="report-section">{m.group(1)}</h2>')
+            i += 1
+            continue
+
+        # Markdown h3: ### Title
+        m = re.match(r"^###\s+(.+)$", line)
+        if m:
+            html_parts.append(f'<h3 class="report-section">{m.group(1)}</h3>')
+            i += 1
+            continue
+
         # Section header: === TITLE ===
         m = re.match(r"^===\s*(.+?)\s*===$", line)
         if m:

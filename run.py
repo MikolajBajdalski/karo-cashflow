@@ -1,3 +1,4 @@
+#!/opt/homebrew/bin/python3.11
 from app import create_app
 from app.db import init_db
 
