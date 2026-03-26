@@ -120,9 +120,12 @@ def parse_bank_csv(filepath: str, account: str) -> dict:
             return {'inserted': 0, 'skipped': 0, 'errors': errors}
 
         csv_block = lines[header_idx:]
-        reader = csv.DictReader(csv_block, delimiter=',')
-        # Normalise fieldnames (strip whitespace / BOM)
-        reader.fieldnames = [f.strip().lstrip('\ufeff') for f in (reader.fieldnames or [])]
+        # Auto-detect delimiter: PKO BP uses ';', some exports use ','
+        header_line = csv_block[0] if csv_block else ''
+        delimiter = ';' if header_line.count(';') > header_line.count(',') else ','
+        reader = csv.DictReader(csv_block, delimiter=delimiter)
+        # Normalise fieldnames (strip whitespace / BOM / quotes)
+        reader.fieldnames = [f.strip().strip('"').lstrip('\ufeff') for f in (reader.fieldnames or [])]
 
         fmt = _detect_format(reader.fieldnames)
         if fmt is None:
