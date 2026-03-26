@@ -1,25 +1,144 @@
-/* KARO CashFlow — minimal base styles (fully replaced in Command 12) */
+/* KARO CashFlow — base styles */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
        background: #0f1117; color: #e2e8f0; min-height: 100vh; }
 
-/* Layout */
+/* ── Layout ─────────────────────────────────────────────────────────────── */
 .layout { display: flex; min-height: 100vh; }
-.sidebar { width: 220px; background: #1a1d27; padding: 1.5rem 0; flex-shrink: 0; }
-.sidebar-brand { font-size: 1rem; font-weight: 700; color: #7c3aed;
-                  padding: 0 1.25rem 1.5rem; letter-spacing: .03em; }
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+.sidebar {
+  width: 200px;
+  background: #1a2744;
+  padding: 1.5rem 0;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.2s ease;
+  overflow: hidden;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0 1.1rem 1.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.brand-icon {
+  width: 28px;
+  height: 28px;
+  background: #7c3aed;
+  color: #fff;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.brand-text {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  letter-spacing: 0.02em;
+  transition: opacity 0.15s;
+}
+
 .sidebar-nav { list-style: none; }
-.sidebar-nav li a { display: block; padding: .6rem 1.25rem; color: #94a3b8;
-                     text-decoration: none; font-size: .875rem; border-radius: 6px;
-                     margin: 2px .5rem; }
-.sidebar-nav li a:hover, .sidebar-nav li a.active
-                        { background: rgba(124,58,237,.15); color: #a78bfa; }
-.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-.topbar { padding: .75rem 2rem; background: #1a1d27;
-          border-bottom: 1px solid #2d3148; font-size: .8rem; color: #64748b; }
+.sidebar-nav li a {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 1.1rem;
+  color: #94a3b8;
+  text-decoration: none;
+  font-size: 0.875rem;
+  border-radius: 6px;
+  margin: 2px 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar-nav li a:hover,
+.sidebar-nav li a.active {
+  background: rgba(124, 58, 237, 0.18);
+  color: #a78bfa;
+}
+.nav-icon { font-size: 1rem; flex-shrink: 0; }
+.nav-text  { transition: opacity 0.15s; }
+
+/* ── Sidebar collapsed (icon-only) ──────────────────────────────────────── */
+.sidebar.collapsed {
+  width: 52px;
+}
+.sidebar.collapsed .brand-text,
+.sidebar.collapsed .nav-text {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+}
+.sidebar.collapsed .sidebar-nav li a {
+  justify-content: center;
+  padding: 0.65rem;
+  margin: 2px 0.4rem;
+}
+.sidebar.collapsed .sidebar-brand {
+  justify-content: center;
+  padding: 0 0 1.5rem;
+}
+
+/* ── Main area ───────────────────────────────────────────────────────────── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+/* ── Topbar ──────────────────────────────────────────────────────────────── */
+.topbar {
+  padding: 0.65rem 1.5rem;
+  background: #1a2744;
+  border-bottom: 1px solid #243155;
+  font-size: 0.8rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.sidebar-toggle {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  line-height: 1;
+}
+.sidebar-toggle:hover { color: #e2e8f0; }
+.topbar-date { color: #94a3b8; }
+.topbar-sep  { color: #2d3148; }
+.topbar-sync { color: #64748b; }
+.sql-label   { color: #64748b; }
+
+.sql-status-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: default;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-green { background: #22c55e; box-shadow: 0 0 5px rgba(34, 197, 94, 0.5); }
+.dot-red   { background: #ef4444; box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
+
+/* ── Content ─────────────────────────────────────────────────────────────── */
 .content { padding: 2rem; overflow-y: auto; }
 
-/* Cards */
+/* ── Cards ───────────────────────────────────────────────────────────────── */
 .card { background: #1e2130; border: 1px solid #2d3148; border-radius: 12px;
         padding: 1.75rem; margin-bottom: 1.5rem; }
 .page-header h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1.5rem;
@@ -27,67 +146,71 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 .section-title { font-size: 1rem; font-weight: 600; color: #c4b5fd;
                   margin-bottom: 1.25rem; }
 
-/* Status dot */
-.sql-status { display: flex; align-items: center; gap: .6rem; margin-bottom: 1.25rem; }
-.status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.dot-green { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,.5); }
-.dot-red   { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,.5); }
-.text-success { color: #4ade80; font-size: .875rem; }
-.text-danger  { color: #f87171; font-size: .875rem; }
+/* ── Status dots (larger, used in import page) ───────────────────────────── */
+.sql-status { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1.25rem; }
+.text-success { color: #4ade80; font-size: 0.875rem; }
+.text-danger  { color: #f87171; font-size: 0.875rem; }
 
-/* Sync forms side by side */
+/* ── Sync forms side by side ─────────────────────────────────────────────── */
 .sync-forms { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 .sync-form-box { background: #252840; border: 1px solid #2d3148; border-radius: 8px;
                   padding: 1.25rem; }
-.sync-form-box h3 { font-size: .875rem; color: #94a3b8; margin-bottom: 1rem; }
-.sync-form-box form { display: flex; flex-direction: column; gap: .6rem; }
+.sync-form-box h3 { font-size: 0.875rem; color: #94a3b8; margin-bottom: 1rem; }
+.sync-form-box form { display: flex; flex-direction: column; gap: 0.6rem; }
 .input-date { background: #1a1d27; border: 1px solid #3d4166; border-radius: 6px;
-              color: #e2e8f0; padding: .45rem .75rem; font-size: .875rem; width: 100%;
+              color: #e2e8f0; padding: 0.45rem 0.75rem; font-size: 0.875rem; width: 100%;
               color-scheme: dark; }
 
-/* Upload form */
+/* ── Upload form ─────────────────────────────────────────────────────────── */
 .upload-form { margin-bottom: 1.25rem; }
 .form-row { display: flex; align-items: flex-end; gap: 1.25rem; flex-wrap: wrap; }
-.form-group { display: flex; flex-direction: column; gap: .4rem; }
-.form-group label { font-size: .8rem; color: #94a3b8; }
+.form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+.form-group label { font-size: 0.8rem; color: #94a3b8; }
 .form-group--btn { justify-content: flex-end; }
 .input-select { background: #1a1d27; border: 1px solid #3d4166; border-radius: 6px;
-                color: #e2e8f0; padding: .45rem .75rem; font-size: .875rem; }
+                color: #e2e8f0; padding: 0.45rem 0.75rem; font-size: 0.875rem; }
 
-/* Buttons */
-.btn { display: inline-flex; align-items: center; gap: .4rem; padding: .5rem 1.1rem;
-       border: none; border-radius: 7px; font-size: .875rem; font-weight: 600;
-       cursor: pointer; transition: opacity .15s; }
-.btn:hover { opacity: .85; }
-.btn:disabled { opacity: .4; cursor: not-allowed; }
-.btn-primary { background: #7c3aed; color: #fff; }
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1.1rem;
+       border: none; border-radius: 7px; font-size: 0.875rem; font-weight: 600;
+       cursor: pointer; transition: opacity 0.15s; text-decoration: none; }
+.btn:hover { opacity: 0.85; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary   { background: #7c3aed; color: #fff; }
+.btn-secondary { background: #2d3148; color: #e2e8f0; }
 
-/* Table */
-.last-sync-table { width: 100%; border-collapse: collapse; font-size: .82rem;
-                    margin-top: .75rem; }
+/* ── Table ───────────────────────────────────────────────────────────────── */
+.last-sync-table { width: 100%; border-collapse: collapse; font-size: 0.82rem;
+                    margin-top: 0.75rem; }
 .last-sync-table th, .last-sync-table td
-                        { text-align: left; padding: .5rem .75rem;
+                        { text-align: left; padding: 0.5rem 0.75rem;
                           border-bottom: 1px solid #2d3148; }
 .last-sync-table th { color: #64748b; font-weight: 600; }
 
-/* Last sync text + help */
-.last-sync { font-size: .8rem; color: #64748b; margin-top: .75rem; }
-.help-text  { font-size: .8rem; color: #64748b; margin-bottom: .9rem; }
+/* ── Misc ────────────────────────────────────────────────────────────────── */
+.last-sync { font-size: 0.8rem; color: #64748b; margin-top: 0.75rem; }
+.help-text  { font-size: 0.8rem; color: #64748b; margin-bottom: 0.9rem; }
 .muted      { color: #3d4166; }
 
-/* Flash messages */
+/* ── Flash messages ──────────────────────────────────────────────────────── */
 .flash-container { margin-bottom: 1.25rem; display: flex; flex-direction: column;
-                   gap: .5rem; }
-.flash { padding: .75rem 1rem; border-radius: 8px; font-size: .875rem; }
-.flash-success { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.3);
+                   gap: 0.5rem; }
+.flash { padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.875rem; }
+.flash-success { background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.3);
                  color: #4ade80; }
-.flash-danger  { background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.3);
+.flash-danger  { background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3);
                  color: #f87171; }
-.flash-info    { background: rgba(59,130,246,.12); border: 1px solid rgba(59,130,246,.3);
+.flash-error   { background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3);
+                 color: #f87171; }
+.flash-info    { background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.3);
                  color: #93c5fd; }
 
-/* Responsive */
+/* ── Responsive: icon-only sidebar at <768px ─────────────────────────────── */
 @media (max-width: 768px) {
   .sync-forms { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
+  .sidebar { width: 52px; }
+  .brand-text,
+  .nav-text { opacity: 0; width: 0; overflow: hidden; }
+  .sidebar-nav li a { justify-content: center; padding: 0.65rem; margin: 2px 0.4rem; }
+  .sidebar-brand    { justify-content: center; padding: 0 0 1.5rem; }
 }

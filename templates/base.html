@@ -9,35 +9,78 @@
 <body>
 
 <div class="layout">
-  <!-- ── Sidebar (placeholder — fully built in Command 12) ── -->
+  <!-- ── Sidebar ── -->
   <nav class="sidebar" id="sidebar">
-    <div class="sidebar-brand">KARO CashFlow</div>
+    <div class="sidebar-brand">
+      <span class="brand-icon">K</span>
+      <span class="brand-text">KARO CashFlow</span>
+    </div>
     <ul class="sidebar-nav">
-      <li><a href="{{ url_for('dashboard.index') }}"
-             class="{{ 'active' if request.endpoint == 'dashboard.index' else '' }}">
-        📊 Dashboard</a></li>
-      <li><a href="/costs"
-             class="{{ 'active' if request.endpoint == 'costs.index' else '' }}">
-        💰 Koszty</a></li>
-      <li><a href="/ai-report"
-             class="{{ 'active' if request.endpoint == 'ai_report.index' else '' }}">
-        🤖 Raport AI</a></li>
-      <li><a href="/receivables"
-             class="{{ 'active' if request.endpoint == 'receivables.index' else '' }}">
-        📥 Należności</a></li>
-      <li><a href="/payables"
-             class="{{ 'active' if request.endpoint == 'payables.index' else '' }}">
-        📤 Zobowiązania</a></li>
-      <li><a href="{{ url_for('import_data.import_page') }}"
-             class="{{ 'active' if request.endpoint and 'import_data' in request.endpoint else '' }}">
-        📂 Import danych</a></li>
+      <li>
+        <a href="{{ url_for('dashboard.index') }}"
+           class="{{ 'active' if request.endpoint == 'dashboard.index' else '' }}"
+           title="Dashboard">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Dashboard</span>
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('costs.index') }}"
+           class="{{ 'active' if request.endpoint == 'costs.index' else '' }}"
+           title="Koszty">
+          <span class="nav-icon">💰</span>
+          <span class="nav-text">Koszty</span>
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('ai_report.index') }}"
+           class="{{ 'active' if request.endpoint == 'ai_report.index' else '' }}"
+           title="Raport AI">
+          <span class="nav-icon">🤖</span>
+          <span class="nav-text">Raport AI</span>
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('receivables.index') }}"
+           class="{{ 'active' if request.endpoint == 'receivables.index' else '' }}"
+           title="Należności">
+          <span class="nav-icon">📥</span>
+          <span class="nav-text">Należności</span>
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('payables.index') }}"
+           class="{{ 'active' if request.endpoint == 'payables.index' else '' }}"
+           title="Zobowiązania">
+          <span class="nav-icon">📤</span>
+          <span class="nav-text">Zobowiązania</span>
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('import_data.import_page') }}"
+           class="{{ 'active' if request.endpoint and 'import_data' in request.endpoint else '' }}"
+           title="Import danych">
+          <span class="nav-icon">📂</span>
+          <span class="nav-text">Import danych</span>
+        </a>
+      </li>
     </ul>
   </nav>
 
   <!-- ── Main area ── -->
   <div class="main">
     <header class="topbar">
-      <span class="topbar-date">{{ now.strftime('%d.%m.%Y') if now is defined else '' }}</span>
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">☰</button>
+      <span class="topbar-date">{{ now.strftime('%d.%m.%Y') }}</span>
+      <span class="topbar-sep">|</span>
+      <span class="sql-status-inline" title="{{ sql_msg }}">
+        <span class="status-dot {{ 'dot-green' if sql_ok else 'dot-red' }}"></span>
+        <span class="sql-label">SQL Server</span>
+      </span>
+      {% if last_sync_time %}
+        <span class="topbar-sep">|</span>
+        <span class="topbar-sync">Sync: {{ last_sync_time[:16] }}</span>
+      {% endif %}
       {% block topbar_extra %}{% endblock %}
     </header>
 
